@@ -21,7 +21,7 @@ class PreciseFramerateLimiter {
     static inline constexpr D3DCOLOR PREFIX_COLOR = 0x88AA62FF;
     static inline constexpr size_t   GTASA_ID3D9DEVICE_ADDRESS = 0xC97C28;
 
-    static inline int                g_FramerateValue = 144;
+    static inline int                g_FramerateValue = Config::DEFAULT_FRAMERATE;
 
     static inline LegacyFrameLimiter legacyFrameLimiter{ g_FramerateValue };
 
@@ -40,27 +40,18 @@ class PreciseFramerateLimiter {
         }
         catch (std::exception const&)
         {
-            cchat_unofficial::AddMessage(PREFIX_COLOR, "Framerate limiter v2: valid amounts are 20+ or 0 for unlimited");
+            cchat_unofficial::AddMessage(PREFIX_COLOR, "Framerate limiter v2: valid amounts are 20-100");
             return;
         }
 
-        if (framerate == Config::UNLIMITED_FRAMERATE)
+        if (!Config::IsValidFramerateLimit(framerate))
         {
-            cchat_unofficial::AddMessage(PREFIX_COLOR, "Framerate limiter v2: unlimited");
-            Config::WriteFramerateLimit(framerate);
-            SetFrameRate(framerate);
-            return;
-        }
-
-        if (framerate < Config::MINIMUM_FRAMERATE)
-        {
-            cchat_unofficial::AddMessage(PREFIX_COLOR, "Framerate limiter v2: valid amounts are 20+ or 0 for unlimited");
+            cchat_unofficial::AddMessage(PREFIX_COLOR, "Framerate limiter v2: valid amounts are 20-100");
             return;
         }
 
         std::string message("Framerate limiter v2: " + std::to_string(framerate));
         cchat_unofficial::AddMessage(PREFIX_COLOR, message.c_str());
-        Config::WriteFramerateLimit(framerate);
         SetFrameRate(framerate);
     }
 
@@ -82,7 +73,7 @@ public:
         renderware_hook::ReplaceRwSetRefreshRate();
 
         Events::initRwEvent += [] {
-            SetFrameRate(Config::ReadFramerateLimit());
+            SetFrameRate(Config::DEFAULT_FRAMERATE);
 
             size_t sampBaseAddress = samp_hook::GetBase();
             if (sampBaseAddress)
@@ -111,11 +102,15 @@ public:
 
     static void SetFrameRate(int framerate)
     {
-        g_FramerateValue = framerate;
-
-        if (framerate) {
-            legacyFrameLimiter.UpdateFramerateLimit(framerate);
+        if (framerate < Config::MINIMUM_FRAMERATE) {
+            framerate = Config::MINIMUM_FRAMERATE;
         }
+        else if (framerate > Config::MAXIMUM_FRAMERATE) {
+            framerate = Config::MAXIMUM_FRAMERATE;
+        }
+
+        g_FramerateValue = framerate;
+        legacyFrameLimiter.UpdateFramerateLimit(framerate);
     }
 } PreciseFramerateLimiter;
 
